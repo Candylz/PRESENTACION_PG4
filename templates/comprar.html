@@ -1,0 +1,492 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom gap-2">
+    <div>
+        <h1 class="h2 fw-bold text-dark mb-1">Módulo de Compras de Repuestos</h1>
+    </div>
+    
+    <!-- Botones de Acción de la Cabecera -->
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-outline-primary fw-bold px-3 py-2 shadow-sm rounded-3 d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNuevoProductoRapido">
+            <i class="bi bi-plus-lg me-1"></i>Producto
+        </button>
+        
+        <button type="button" class="btn btn-outline-primary fw-bold px-3 py-2 shadow-sm rounded-3 d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalProveedor">
+            <i class="bi bi-person-plus-fill me-1"></i>Proveedor
+        </button>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Columna Izquierda: Listado de Almacén -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+             <div class="card-body p-0">
+                <div class="mb-3">
+                    <div class="input-group shadow-sm rounded-3">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="buscadorCompra" class="form-control border-start-0 ps-0" placeholder="Buscar o escanear código de barras..." autofocus autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Formulario dinámico de adición rápida -->
+                <form action="/agregar_al_carrito_compra" method="POST" id="formAgregarCompra">
+                    <input type="hidden" id="id_producto_compra_hidden" name="id_producto" required>
+                    <input type="hidden" name="cantidad" value="1">
+
+                    <div class="mb-3">
+                        <div class="list-group shadow-sm rounded-3 overflow-auto flex-grow-1" id="listaProductosCompra" style="max-height: calc(100vh - 250px);">
+                            {% if productos|length == 0 %}
+                                <div class="list-group-item text-center py-4 text-muted">
+                                    <i class="bi bi-exclamation-triangle d-block fs-3 mb-1"></i> No hay productos registrados en el sistema.
+                                </div>
+                            {% else %}
+                                {% for prod in productos %}
+                                    <button type="button" class="list-group-item list-group-item-action py-3 item-repuesto-compra" data-id="{{ prod.id_producto }}" data-buscar="{{ prod.descripcion|lower }} {{ prod.Marca|lower }} {{ prod.Modelo|lower }} {{ (prod.codigo_barras or '')|lower }}">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <h6 class="mb-1 fw-bold text-dark text-capitalize">{{ prod.descripcion }}</h6>
+                                            <span class="badge bg-primary-subtle text-primary fs-6 fw-bold">Costo: C${{ "%.2f"|format(prod.precio_compra) }}</span>
+                                        </div>
+                                        <p class="mb-1 text-secondary small">
+                                            <strong>Marca:</strong> {{ prod.Marca }} | <strong>Modelo:</strong> {{ prod.Modelo }}
+                                            {% if prod.codigo_barras %} | <strong>Código:</strong> {{ prod.codigo_barras }}{% endif %}
+                                        </p>
+                                        <small class="text-muted">
+                                            Stock actual: <strong class="text-dark">{{ prod.stock_actual }} u.</strong>
+                                        </small>
+                                    </button>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div id="avisoNoCompra" class="alert alert-warning small p-2 mt-2 d-none">
+                            <i class="bi bi-info-circle me-1"></i> No hay repuesto que coincida con la búsqueda.
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Detalle de Factura con Precios Editables -->
+    <div class="col-xl-6 col-lg-6">
+        <form action="/procesar_compra_carrito" method="POST" class="h-100">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="py-2" style="width: 28%;">Repuesto</th>
+                                    <th class="py-2 text-center" style="width: 15%;">Cant.</th>
+                                    <th class="py-2 text-center" style="width: 24%;">P. Compra</th>
+                                    <th class="py-2 text-center" style="width: 24%;">P. Venta</th>
+                                    <th class="py-2 text-center" style="width: 9%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for id_p, item in carrito.items() %}
+                                <tr class="item-carrito-compra" data-id="{{ item.id_producto }}">
+                                    <td class="fw-semibold text-dark small align-middle">
+                                        {{ item.descripcion }}
+                                        <input type="hidden" name="id_producto_lista[]" value="{{ item.id_producto }}">
+                                    </td>
+                                    
+                                    <td class="text-center align-middle">
+                                        <input type="number" 
+                                               name="cantidades[]" 
+                                               class="form-control form-control-sm text-center fw-bold px-1 input-compra-sync" 
+                                               value="{{ item.cantidad }}" 
+                                               min="1" 
+                                               required>
+                                    </td>
+                                    
+                                    <td class="align-middle">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light border-end-0 px-1 small">C$</span>
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   name="precios_compra[]" 
+                                                   class="form-control form-control-sm text-end ps-1 fw-semibold text-primary input-compra-sync" 
+                                                   value="{{ "%.2f"|format(item.precio_compra) }}" 
+                                                   required>
+                                        </div>
+                                    </td>
+
+                                    <td class="align-middle">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-light border-end-0 px-1 small">C$</span>
+                                            <input type="number" 
+                                                   step="0.01" 
+                                                   name="precios_venta[]" 
+                                                   class="form-control form-control-sm text-end ps-1 fw-semibold text-success input-compra-sync" 
+                                                   value="{{ "%.2f"|format(item.precio_venta) }}" 
+                                                   required>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-center align-middle">
+                                        <button type="submit" 
+                                                formaction="{{ url_for('compras.quitar_del_carrito_compra_route') }}"
+                                                formmethod="POST"
+                                                name="id_producto" 
+                                                value="{{ id_p }}" 
+                                                class="btn btn-outline-danger btn-sm p-1" 
+                                                title="Quitar repuesto"
+                                                formnovalidate>
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="bi bi-box-arrow-in-down fs-2 d-block mb-2 text-secondary"></i>
+                                        <span>No hay repuestos en la lista de entrada.</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-top pt-3 mt-3 bg-light p-0 rounded-3">
+                        <div class="mb-3">
+                            <label for="id_proveedor" class="form-label fw-bold text-secondary small">Proveedor de la carga:</label>
+                            <select name="id_proveedor" id="id_proveedor" class="form-select" required>
+                                <option value="" disabled selected>-- Selecciona un proveedor --</option>
+                                {% for prov in proveedores %}
+                                    <option value="{{ prov.id_proveedor }}">
+                                        {{ prov.nombre_empresa }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fs-6 fw-bold text-secondary">TOTAL ENTRADA:</span>
+                            <span class="fs-3 fw-bold text-primary">C${{ "%.2f"|format(total_compra) }}</span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm py-2" {% if not carrito %}disabled{% endif %}>
+                            <i class="bi bi-check-all me-1"></i> Procesar Entrada y Actualizar Precios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Registro Exitoso -->
+<div class="modal fade" id="modalCompraExitosa" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-body text-center p-5">
+                <div class="mb-4">
+                    <i class="bi bi-box-seam-fill text-primary" style="font-size: 5rem;"></i>
+                </div>
+                <h3 class="fw-bold text-dark mb-2">¡Compra Registrada!</h3>
+                <p class="text-muted mb-4">Los productos han sido ingresados al inventario correctamente.</p>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-dark btn-lg fw-bold rounded-3 py-2.5" data-bs-dismiss="modal">
+                        ¡Listo!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Agregar Proveedor -->
+<div class="modal fade" id="modalProveedor" tabindex="-1" aria-labelledby="modalProveedorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark" id="modalProveedorLabel">
+                    <i class="bi bi-building-add me-2 text-primary"></i>Registrar Nuevo Proveedor
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <form id="formNuevoProveedor">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Nombre de la Empresa / Proveedor</label>
+                        <input type="text" class="form-control rounded-3" name="nombre_empresa" required placeholder="Ej: Repuestos Repimsa S.A.">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Teléfono de Contacto</label>
+                        <input type="text" class="form-control rounded-3" name="telefono" placeholder="Ej: 8888-8888">
+                    </div>
+                    <div class="d-flex gap-2 justify-content-end pt-2">
+                        <button type="button" class="btn btn-light fw-bold px-4 rounded-3" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4 rounded-3">Guardar Proveedor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Nuevo Producto -->
+<div class="modal fade" id="modalNuevoProductoRapido" tabindex="-1" aria-labelledby="modalProductoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold text-dark" id="modalProductoLabel">
+                    <i class="bi bi-box-seam me-2 text-primary"></i>Registrar Nuevo Repuesto
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <form action="/guardar_producto" method="POST">
+                    <input type="hidden" name="stock_inicial" value="0">
+                    <input type="hidden" name="stock_minimo" value="1">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Descripción / Repuesto</label>
+                        <input type="text" class="form-control rounded-3" name="descripcion" placeholder="Ej: Bujía CR8E, Llanta 110/90-17" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Marca</label>
+                            <input type="text" class="form-control rounded-3" name="Marca" placeholder="Ej: NGK, Genesis" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Modelo / Aplicación</label>
+                            <input type="text" class="form-control rounded-3" name="Modelo" placeholder="Ej: Pulsar 200NS, Universal" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Precio Compra (C$)</label>
+                            <input type="number" step="0.01" class="form-control rounded-3" name="precio_compra" placeholder="0.00" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Precio Venta (C$)</label>
+                            <input type="number" step="0.01" class="form-control rounded-3" name="precio_venta" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <!-- Campo opcional para asignar código de barras al crear el producto -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Código de Barras (opcional)</label>
+                        <input type="text" class="form-control rounded-3" name="codigo_barras" placeholder="Escanea o escribe el código aquí" autocomplete="off">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Proveedor Inicial</label>
+                        <select name="id_proveedor" class="form-select rounded-3" required>
+                            <option value="" disabled selected>-- Selecciona un proveedor --</option>
+                            {% for prov in proveedores %}
+                                <option value="{{ prov.id_proveedor }}">{{ prov.nombre_empresa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end pt-2">
+                        <button type="button" class="btn btn-light fw-bold px-4 rounded-3" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4 rounded-3">Guardar Producto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const inputBuscador = document.getElementById('buscadorCompra');
+    const formAgregar = document.getElementById('formAgregarCompra');
+    const inputHidden = document.getElementById('id_producto_compra_hidden');
+
+    // 1. Mostrar Pop-up Modal de Compra Exitosa (al recibir ?exito=true en la URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('exito') === 'true') {
+        const elModal = document.getElementById('modalCompraExitosa');
+        if (elModal) {
+            const miModal = new bootstrap.Modal(elModal);
+            miModal.show();
+            // Limpia la URL para que no vuelva a saltar al recargar manualmente
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    // 2. Buscador dinámico y escaneo automático de código de barras
+    if (inputBuscador) {
+        inputBuscador.focus();
+
+        // Filtro visual de la lista mientras se escribe (ya incluye el código)
+        inputBuscador.addEventListener('input', function() {
+            const termino = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('#listaProductosCompra .item-repuesto-compra');
+            const avisoError = document.getElementById('avisoNoCompra');
+            let encontrados = 0;
+
+            items.forEach(item => {
+                const textoBusqueda = item.getAttribute('data-buscar') || '';
+                if (textoBusqueda.includes(termino)) {
+                    item.classList.remove('d-none');
+                    encontrados++;
+                } else {
+                    item.classList.add('d-none');
+                }
+            });
+
+            if (avisoError) {
+                if (encontrados === 0 && termino !== "") {
+                    avisoError.classList.remove('d-none');
+                } else {
+                    avisoError.classList.add('d-none');
+                }
+            }
+        });
+
+        // NUEVO: ESCANEO AUTOMÁTICO EN COMPRAS
+        // Busca el producto por código exacto y lo agrega al carrito de entrada.
+        // usarRespaldo = true solo con Enter: si no hay código exacto,
+        // toma el primer producto visible del filtro de texto.
+        let procesandoEscaneo = false; // evita enviar el formulario dos veces
+
+        function buscarYAgregarCompra(texto, usarRespaldo) {
+            if (procesandoEscaneo || !texto) return;
+            procesandoEscaneo = true;
+
+            fetch(`/buscar_por_codigo_barras_compra?codigo=${encodeURIComponent(texto)}`)
+                .then(response => response.json())
+                .then(producto => {
+                    if (producto) {
+                        if (inputHidden) inputHidden.value = producto.id_producto;
+                        formAgregar.submit();
+                    } else if (usarRespaldo) {
+                        const visibles = document.querySelectorAll('#listaProductosCompra .item-repuesto-compra:not(.d-none)');
+                        if (visibles.length > 0) {
+                            if (inputHidden) inputHidden.value = visibles[0].getAttribute('data-id');
+                            formAgregar.submit();
+                        } else {
+                            procesandoEscaneo = false;
+                        }
+                    } else {
+                        procesandoEscaneo = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al buscar por código de barras:', error);
+                    procesandoEscaneo = false;
+                });
+        }
+
+        // NUEVO: respaldo con Enter (lector físico o app que sí envía Enter)
+        inputBuscador.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarYAgregarCompra(inputBuscador.value.trim(), true);
+            }
+        });
+
+        // NUEVO: detección automática SIN Enter. Texto de solo dígitos
+        // (6 o más) que lleva 250 ms sin cambiar se considera un escaneo terminado.
+        let temporizadorEscaneo = null;
+        inputBuscador.addEventListener('input', function() {
+            clearTimeout(temporizadorEscaneo);
+            const texto = inputBuscador.value.trim();
+
+            if (/^\d{6,}$/.test(texto)) {
+                temporizadorEscaneo = setTimeout(function() {
+                    buscarYAgregarCompra(texto, false);
+                }, 250);
+            }
+        });
+    }
+
+    // 3. Clic directo sobre un repuesto del listado
+    const itemsCompra = document.querySelectorAll('.item-repuesto-compra');
+    itemsCompra.forEach(item => {
+        item.addEventListener('click', function() {
+            const idProducto = this.getAttribute('data-id');
+            if (inputHidden) {
+                inputHidden.value = idProducto;
+                formAgregar.submit();
+            }
+        });
+    });
+
+    // 4. Recálculo dinámico del Total en tiempo real
+    function recalcularTotalCompra() {
+        let total = 0;
+        document.querySelectorAll('.item-carrito-compra').forEach(tr => {
+            const cantInput = tr.querySelector('input[name="cantidades[]"]');
+            const precioInput = tr.querySelector('input[name="precios_compra[]"]');
+            
+            const cant = parseFloat(cantInput?.value) || 0;
+            const precio = parseFloat(precioInput?.value) || 0;
+            total += (cant * precio);
+        });
+
+        const elementoTotal = document.querySelector('.fs-3.fw-bold.text-primary');
+        if (elementoTotal) {
+            elementoTotal.textContent = `C$${total.toFixed(2)}`;
+        }
+    }
+
+    // 5. Sincronización AJAX instantánea con la sesión
+    document.querySelectorAll('.item-carrito-compra').forEach(tr => {
+        const idProducto = tr.getAttribute('data-id');
+        const inputCant = tr.querySelector('input[name="cantidades[]"]');
+        const inputPCompra = tr.querySelector('input[name="precios_compra[]"]');
+        const inputPVenta = tr.querySelector('input[name="precios_venta[]"]');
+
+        const inputs = [inputCant, inputPCompra, inputPVenta];
+
+        inputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', function() {
+                    recalcularTotalCompra();
+
+                    let cant = parseInt(inputCant.value);
+                    if (isNaN(cant) || cant < 1) cant = 1;
+
+                    const pCompra = parseFloat(inputPCompra.value) || 0;
+                    const pVenta = parseFloat(inputPVenta.value) || 0;
+
+                    fetch('/actualizar_valores_compra_ajax', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `id_producto=${encodeURIComponent(idProducto)}&cantidad=${cant}&precio_compra=${pCompra}&precio_venta=${pVenta}`
+                    });
+                });
+            }
+        });
+    });
+
+    // 6. Registro de Proveedor vía AJAX
+    const formProveedor = document.getElementById('formNuevoProveedor');
+    if (formProveedor) {
+        formProveedor.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch("/agregar_proveedor_ajax", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const modalElement = document.getElementById('modalProveedor');
+                    const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                    modal.hide();
+                    this.reset();
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error al guardar el proveedor');
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+    }
+});
+</script>
+{% endblock %}

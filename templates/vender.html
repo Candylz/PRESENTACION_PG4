@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% block contenido %}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 pb-1 border-bottom gap-2">
+    <div>
+        <h1 class="h2 fw-bold text-dark mb-1">Módulo de Ventas</h1>
+    </div>
+    
+
+    <!-- Botones de Acción -->
+<div class="d-flex flex-wrap gap-2 align-items-center">
+    <!-- Formulario del botón de quitar de factura -->
+    <form action="{{ url_for('ventas.quitar_del_carrito') }}" method="POST">
+        <input type="hidden" id="id_producto_quitar_venta" name="id_producto">
+        
+        <button type="submit" id="btnQuitarFacturaVenta" class="btn btn-outline-danger fw-bold shadow-sm rounded-3 d-flex align-items-center gap-1" disabled>
+            <i class="bi bi-trash"></i> Quitar de Factura
+        </button>
+    </form>
+</div>
+</div>
+
+
+
+
+<div class="row g-3">
+    <!-- Columna Izquierda: Escáner y Catálogo -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body p-0">
+                <!-- Entrada para Lector de Código de Barras / Buscador -->
+                <div class="mb-3">
+                    <div class="input-group shadow-sm rounded-3">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="buscadorVenta" class="form-control border-start-0 ps-0" placeholder="Buscador por descripción, marca o modelo..." autofocus autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Formulario automático al hacer clic/escanear -->
+                <form action="/agregar_al_carrito" method="POST" id="formAgregarVenta">
+                    <input type="hidden" id="id_producto_venta_hidden" name="id_producto" required>
+                    <!-- Enviamos cantidad fija = 1 desde el catálogo -->
+                    <input type="hidden" name="cantidad" value="1">
+
+                    <div class="list-group shadow-sm rounded-3 overflow-auto flex-grow-1" id="listaProductosVenta" style="max-height: calc(100vh - 220px);">
+                        {% if productos|length == 0 %}
+                            <div class="list-group-item text-center py-4 text-muted">
+                                <i class="bi bi-exclamation-triangle d-block fs-3 mb-1"></i> No hay repuestos disponibles en el almacén.
+                            </div>
+                        {% else %}
+                            {% for prod in productos %}
+    <button type="button" class="list-group-item list-group-item-action py-2.5 item-repuesto-venta" data-id="{{ prod.id_producto }}" data-buscar="{{ prod.descripcion|lower }} {{ prod.Marca|lower }} {{ prod.Modelo|lower }} {{ (prod.codigo_barras or '')|lower }}">
+        <div class="d-flex w-100 justify-content-between align-items-center">
+            <h6 class="mb-1 fw-bold text-dark text-capitalize">{{ prod.descripcion }}</h6>
+            <span class="badge bg-success-subtle text-success fs-6 fw-bold">C${{ "%.2f"|format(prod.precio_venta) }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <small class="text-secondary">
+                <strong>Marca:</strong> {{ prod.Marca }} | <strong>Modelo:</strong> {{ prod.Modelo }}
+                {% if prod.codigo_barras %} | <strong>Código:</strong> {{ prod.codigo_barras }}{% endif %}
+            </small>
+            <small class="badge {% if prod.stock_actual > 5 %}bg-light text-dark{% else %}bg-warning-subtle text-warning-emphasis{% endif %}">
+                Stock: {{ prod.stock_actual }} u.
+            </small>
+        </div>
+    </button>
+{% endfor %}
+                        {% endif %}
+                    </div>
+                    
+                    <div id="avisoNoVenta" class="alert alert-warning small p-2 mt-2 d-none">
+                        <i class="bi bi-info-circle me-1"></i> No se encontró ningún repuesto coincidente.
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<!-- Columna Derecha: Detalle de Factura con Modificación de Cantidad Directa -->
+    <div class="col-xl-6 col-lg-6">
+        <form action="/procesar_venta_carrito" method="POST" class="h-100">
+            <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
+                <div class="card-body p-0 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="py-2">Repuesto</th>
+                                        <th class="py-2 text-center" style="width: 110px;">Cantidad</th>
+                                        <th class="py-2 text-end">Precio</th>
+                                        <th class="py-2 text-end">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in carrito_venta.values() %}
+                                    <tr class="item-carrito-venta" data-id="{{ item.id_producto }}" style="cursor: pointer;">
+                                        <td class="fw-semibold text-dark">
+                                            {{ item.descripcion }}
+                                            <input type="hidden" name="id_producto_lista" value="{{ item.id_producto }}">
+                                        </td>
+                                        
+                                        <!-- Cantidad editable directamente con AJAX -->
+                                        <td class="text-center" onclick="event.stopPropagation();">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" 
+                                                       class="form-control text-center fw-bold px-1 input-cantidad-carrito" 
+                                                       data-id="{{ item.id_producto }}" 
+                                                       value="{{ item.cantidad }}" 
+                                                       min="1" 
+                                                       style="max-width: 65px; margin: 0 auto;">
+                                            </div>
+                                        </td>
+                                        
+                                        <td class="text-end text-secondary">C${{ "%.2f"|format(item.precio) }}</td>
+                                        <td class="text-end fw-bold text-dark">C${{ "%.2f"|format(item.cantidad * item.precio) }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5 text-muted">
+                                            <i class="bi bi-cart-x fs-2 d-block mb-2 text-secondary"></i>
+                                            <span>No hay productos agregados a la factura de venta.</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-2 mt-3 bg-light p-0 rounded-3">
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="fs-5 fw-bold text-secondary">TOTAL A PAGAR:</span>
+                            <span class="fs-3 fw-bold text-success">C${{ "%.2f"|format(total_venta) }}</span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow-sm py-2.5" {% if not carrito_venta %}disabled{% endif %}>
+                            <i class="bi bi-cash-coin me-1"></i> Cobrar y Procesar Venta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Pop-Up de Venta Exitosa -->
+<div class="modal fade" id="modalVentaExitosa" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-body text-center p-5">
+                <div class="mb-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                </div>
+                <h3 class="fw-bold text-dark mb-2">¡Venta Registrada!</h3>
+                <p class="text-muted mb-4">Venta realizada con éxito.</p>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-success btn-lg fw-bold rounded-3 py-2" data-bs-dismiss="modal">
+                        ¡Entendido!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    // 0. Mostrar Pop-up Modal de Venta Exitosa (al recibir ?exito=true en la URL)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('exito') === 'true') {
+        const elModal = document.getElementById('modalVentaExitosa');
+        if (elModal) {
+            const miModal = new bootstrap.Modal(elModal);
+            miModal.show();
+            // Limpia la URL para que el modal no vuelva a abrirse al recargar la página
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    // 1. Buscador y soporte para Escáner de Código de Barras
+    const inputBuscador = document.getElementById('buscadorVenta');
+    const formAgregar = document.getElementById('formAgregarVenta');
+    const inputHidden = document.getElementById('id_producto_venta_hidden');
+
+    if (inputBuscador) {
+        inputBuscador.focus(); // Mantiene el cursor listo para el lector
+
+        inputBuscador.addEventListener('input', function() {
+            const termino = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('#listaProductosVenta .item-repuesto-venta');
+            const avisoError = document.getElementById('avisoNoVenta');
+            let encontrados = [];
+
+            items.forEach(item => {
+                const textoBusqueda = item.getAttribute('data-buscar') || '';
+                if (textoBusqueda.includes(termino)) {
+                    item.classList.remove('d-none');
+                    item.classList.add('d-flex');
+                    encontrados.push(item);
+                } else {
+                    item.classList.remove('d-flex');
+                    item.classList.add('d-none');
+                }
+            });
+
+            if (encontrados.length === 0 && termino !== "") {
+                if (avisoError) avisoError.classList.remove('d-none');
+            } else {
+                if (avisoError) avisoError.classList.add('d-none');
+            }
+        });
+
+                // ------------------------------------------------------------
+        // ESCANEO AUTOMÁTICO
+        // Función central: busca el producto por código de barras exacto
+        // y, si existe, lo agrega al carrito enviando el formulario.
+        // El parámetro usarRespaldo indica si, cuando NO hay coincidencia
+        // exacta, se debe tomar el primer producto visible del filtro de
+        // texto (solo lo usamos con Enter, nunca con el escaneo automático).
+        // ------------------------------------------------------------
+        let procesandoEscaneo = false; // evita enviar el formulario dos veces
+
+        function buscarYAgregar(texto, usarRespaldo) {
+            if (procesandoEscaneo || !texto) return;
+            procesandoEscaneo = true;
+
+            fetch(`/buscar_por_codigo_barras?codigo=${encodeURIComponent(texto)}`)
+                .then(response => response.json())
+                .then(producto => {
+                    if (producto) {
+                        // Coincidencia exacta: agregamos al carrito automáticamente.
+                        if (inputHidden) inputHidden.value = producto.id_producto;
+                        if (formAgregar) formAgregar.submit();
+                    } else if (usarRespaldo) {
+                        // Sin coincidencia exacta y se presionó Enter:
+                        // tomamos el primer producto visible del filtro de texto.
+                        const visibles = document.querySelectorAll('#listaProductosVenta .item-repuesto-venta:not(.d-none)');
+                        if (visibles.length > 0) {
+                            if (inputHidden) inputHidden.value = visibles[0].getAttribute('data-id');
+                            if (formAgregar) formAgregar.submit();
+                        } else {
+                            procesandoEscaneo = false;
+                        }
+                    } else {
+                        procesandoEscaneo = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al buscar por código de barras:', error);
+                    procesandoEscaneo = false;
+                });
+        }
+
+        // 1) Respaldo con Enter (lector físico o app que sí envía Enter).
+        //    Usamos keydown porque es más confiable que keypress.
+        inputBuscador.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                buscarYAgregar(inputBuscador.value.trim(), true);
+            }
+        });
+
+        // 2) Detección automática SIN Enter: cuando el texto lleva
+        //    ~250 ms sin cambiar y parece un código de barras
+        //    (solo dígitos, 6 o más), se busca y se agrega solo.
+        //    El escáner escribe todo el código en milisegundos,
+        //    así que la pausa indica que terminó de escanear.
+        let temporizadorEscaneo = null;
+        inputBuscador.addEventListener('input', function() {
+            clearTimeout(temporizadorEscaneo);
+            const texto = inputBuscador.value.trim();
+
+            if (/^\d{6,}$/.test(texto)) {
+                temporizadorEscaneo = setTimeout(function() {
+                    buscarYAgregar(texto, false);
+                }, 250);
+            }
+        });
+    }
+
+    // 2. Al hacer clic manual sobre un repuesto en la lista izquierda
+    const itemsVenta = document.querySelectorAll('.item-repuesto-venta');
+    itemsVenta.forEach(item => {
+        item.addEventListener('click', function() {
+            const idProducto = this.getAttribute('data-id');
+            if (inputHidden) inputHidden.value = idProducto;
+            if (formAgregar) formAgregar.submit();
+        });
+    });
+
+    // 3. Modificación de cantidad directo en tiempo real (Cálculo inmediato de Subtotal y Total)
+    const inputsCantidad = document.querySelectorAll('.input-cantidad-carrito');
+
+    // Función auxiliar para recalcular el gran TOTAL A PAGAR de la factura
+    function recalcularTotalFactura() {
+        let total = 0;
+        document.querySelectorAll('.item-carrito-venta').forEach(tr => {
+            const subtotalTexto = tr.children[3] ? tr.children[3].textContent : "0";
+            const subtotalNum = parseFloat(subtotalTexto.replace(/[^0-9.]/g, '')) || 0;
+            total += subtotalNum;
+        });
+
+        const elementoTotal = document.querySelector('.text-success.fs-3');
+        if (elementoTotal) {
+            elementoTotal.textContent = `C$${total.toFixed(2)}`;
+        }
+    }
+
+    inputsCantidad.forEach(input => {
+        input.addEventListener('input', function() {
+            const idProducto = this.getAttribute('data-id');
+            let nuevaCantidad = parseInt(this.value);
+            const tr = this.closest('tr');
+
+            if (isNaN(nuevaCantidad) || nuevaCantidad < 1) {
+                nuevaCantidad = 1;
+            }
+
+            // 1. Obtener precio unitario de la celda 3 (índice 2)
+            const celdaPrecio = tr.children[2];
+            const precioUnitario = parseFloat(celdaPrecio.textContent.replace(/[^0-9.]/g, '')) || 0;
+
+            // 2. Calcular y refrescar el subtotal de la fila al instante
+            const nuevoSubtotal = nuevaCantidad * precioUnitario;
+            const celdaSubtotal = tr.children[3];
+            celdaSubtotal.textContent = `C$${nuevoSubtotal.toFixed(2)}`;
+
+            // 3. Actualizar la suma total a pagar
+            recalcularTotalFactura();
+
+            // 4. Guardar los cambios en el servidor/sesión de Flask de forma silenciosa
+            fetch('/actualizar_cantidad_venta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id_producto=${encodeURIComponent(idProducto)}&cantidad=${nuevaCantidad}`
+            });
+        });
+    });
+
+    // 4. Selección en carrito para quitar repuestos
+    const filasCarritoVenta = document.querySelectorAll('.item-carrito-venta');
+    const inputQuitarVenta = document.getElementById('id_producto_quitar_venta');
+    const btnQuitarVenta = document.getElementById('btnQuitarFacturaVenta');
+
+    filasCarritoVenta.forEach(fila => {
+        fila.addEventListener('click', function() {
+            filasCarritoVenta.forEach(f => f.classList.remove('table-danger'));
+            this.classList.add('table-danger');
+            
+            const idProducto = this.getAttribute('data-id');
+            if (inputQuitarVenta) inputQuitarVenta.value = idProducto;
+            if (btnQuitarVenta) btnQuitarVenta.disabled = false;
+        });
+    });
+
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom">
+    <div> 
+        <h1 class="h2 fw-bold text-dark mb-1">Módulo de Historial de Compras</h1> 
+    </div>
+</div>
+
+<div class="row g-4 px-3">
+    <!-- Tabla Principal: Lista de Compras -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="background-color: white;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="ps-3">#Compra</th>
+                                <th>Proveedor</th>
+                                <th>Fecha y Hora</th>
+                                <th>Inversión</th>
+                                <th class="text-center pe-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for compra in compras %}
+                            <tr class="{% if compra_seleccionada and compra_seleccionada.id_compra == compra.id_compra %}table-light border-start border-3 border-info{% endif %}">
+                                <td class="ps-3 fw-bold">#{{ compra.id_compra }}</td>
+                                <td>{{ compra.proveedor }}</td>
+                                <td>{{ compra.fecha_compra.strftime('%d/%m/%Y %H:%M') if compra.fecha_compra else '' }}</td>
+                                <td class="text-success fw-bold">${{ "{:,.2f}".format(compra.total_compra) }}</td>
+                                <td class="text-center pe-3 text-nowrap">
+    <a href="{{ url_for('compras.historial_compras', id_compra=compra.id_compra) }}" class="btn btn-sm btn-outline-primary shadow-sm px-3 text-nowrap">
+        Detalles
+    </a>
+</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    No se encontraron compras registradas en la base de datos.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral: Detalle de Repuestos -->
+    <div class="col-lg-5">
+        {% if detalle %}
+        <div class="card shadow-sm border-0 position-sticky" style="top: 20px; background-color: white;">
+            <div class="card-header bg-primary text-white py-3 border-0">
+                <h5 class="card-title mb-0 fw-bold">Detalle de Compra #{{ compra_seleccionada.id_compra }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3 bg-light p-3 rounded">
+                    <div class="row text-muted small">
+                        <div class="col-6 mb-2">
+                            <strong>Proveedor:</strong><br>
+                            <span class="text-dark fw-semibold">{{ compra_seleccionada.proveedor }}</span>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <strong>Recibido por:</strong><br>
+                            <span class="text-dark fw-semibold">{{ compra_seleccionada.comprador }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <label class="form-label fw-bold text-secondary text-uppercase small">Repuestos Recibidos</label>
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-striped align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Repuesto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Costo U.</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in detalle %}
+                            <tr>
+                                <td>
+                                    <span class="d-block text-dark fw-semibold">{{ item.descripcion }}</span>
+                                    <small class="text-muted">{{ item.Marca }}</small>
+                                </td>
+                                <td class="text-center fw-bold">{{ item.cantidad }}</td>
+                                <td class="text-end text-secondary">${{ "{:,.2f}".format(item.precio_costo) }}</td>
+                                <td class="text-end fw-semibold text-dark">${{ "{:,.2f}".format(item.subtotal) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                    <span class="fs-5 fw-bold text-secondary">Monto Total:</span>
+                    <span class="fs-4 fw-bold text-success">${{ "{:,.2f}".format(compra_seleccionada.total_compra) }}</span>
+                </div>
+                <a href="{{ url_for('compras.historial_compras') }}" class="btn btn-secondary w-100 mt-3 btn-sm shadow-sm">
+
+            
+                    Cerrar vista de detalle
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow-sm border-0 bg-white text-center py-5 px-4">
+            <div class="my-3 text-muted">
+                <h5 class="fw-bold text-secondary">Auditoría de Entradas</h5>
+                <p class="small text-muted px-3">Presiona "Ver más detalles" en cualquier factura para ver más detalles de la venta.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% block contenido %}
+<!-- MODULO DE INVENTARIO -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-2 pb-2 border-bottom">
+    <div> <h1 class="h2 fw-bold text-dark mb-1">Productos existentes en almacenamiento</h1> </div>
+</div>
+
+<div class="row mb-2">
+    <div class="col-md-8">
+        <div class="input-group shadow-sm rounded-3">
+            <span class="input-group-text bg-white border-end-0 text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="inputBuscador" class="form-control border-start-0 ps-0" 
+                   placeholder="Buscar o escanear código de barras..." autofocus autocomplete="off">
+        </div>
+    </div>
+</div>
+
+<!-- Panel que muestra el producto escaneado (oculto hasta que se escanea).
+     CAMBIO: se eliminó la línea del código de barras, ya no se muestra al cliente. -->
+<div id="panelEscaneo" class="alert alert-primary shadow-sm rounded-3 d-none mb-2 py-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <small class="text-uppercase fw-bold text-primary"><i class="bi bi-upc-scan me-1"></i>Producto escaneado</small>
+            <div class="fs-5 fw-bold text-dark" id="escaneoDescripcion"></div>
+            <small class="text-secondary">
+                <strong>Marca:</strong> <span id="escaneoMarca"></span> |
+                <strong>Modelo:</strong> <span id="escaneoModelo"></span>
+            </small>
+        </div>
+        <div class="text-end">
+            <div class="fs-5 fw-bold text-success" id="escaneoPrecio"></div>
+            <div class="fw-bold text-dark">Stock: <span id="escaneoStock"></span> u.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Aviso cuando el código escaneado no existe -->
+<div id="avisoEscaneoNoEncontrado" class="alert alert-warning shadow-sm rounded-3 d-none mb-2 py-2">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    No existe ningún producto con el código escaneado <strong id="codigoNoEncontrado"></strong>.
+</div>
+
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">Descripción del Repuesto</th>
+                        <th scope="col">Modelo</th>
+                        <th scope="col">Marca</th>
+                        <!-- CAMBIO: se eliminó la columna "Código" -->
+                        <th scope="col">Precio Venta</th>
+                        <th scope="col">Stock Actual</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaProductos">
+                    {% for prod in productos %}
+                    <!-- IMPORTANTE: data-codigo guarda el código SIN mostrarlo.
+                         Es lo que usa el JS para buscar y escanear. No lo borres. -->
+                    <tr class="fila-producto" data-codigo="{{ prod.codigo_barras or '' }}">
+                        <td class="fw-semibold text-dark buscable-descripcion celda-descripcion">{{ prod.descripcion }}</td>
+                        <td class="fw-semibold text-dark buscable-modelo celda-modelo">{{ prod.Modelo }}</td>
+                        <td class="fw-semibold text-secondary buscable-marca celda-marca">{{ prod.Marca }}</td>
+                        <!-- CAMBIO: se eliminó la celda <td> que mostraba el código -->
+                        <td class="text-success fw-bold celda-precio">C${{ "%.2f"|format(prod.precio_venta) }}</td>
+                        <td><span class="fs-6 fw-bold text-dark celda-stock">{{ prod.stock_actual }}</span> u.</td>
+                        <td>
+                            {% if prod.stock_actual <= prod.stock_minimo %}
+                                <span class="badge bg-danger-subtle text-danger px-2.5 py-2 rounded-2 fw-bold">Crítico</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success px-2.5 py-2 rounded-2 fw-bold">Estable</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <button type="button" 
+                                    class="btn btn-warning btn-sm fw-bold text-dark px-3 rounded-2 shadow-sm"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalEditarProducto"
+                                    data-id="{{ prod.id_producto }}"
+                                    data-descripcion="{{ prod.descripcion }}"
+                                    data-modelo="{{ prod.Modelo }}"
+                                    data-marca="{{ prod.Marca }}"
+                                    data-precio-compra="{{ prod.precio_compra }}"
+                                    data-precio-venta="{{ prod.precio_venta }}"
+                                    data-codigo-barras="{{ prod.codigo_barras or '' }}"
+                            >
+                                <i class="bi bi-pencil-square"></i> Editar
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <!-- CAMBIO: colspan de 8 a 7 (ahora hay una columna menos) -->
+                        <td colspan="7" class="text-center py-5 text-muted">No hay repuestos en el catálogo.</td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <tr id="filaNoResultados" class="d-none">
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-search fs-2 d-block mb-2"></i>
+                            <span class="fw-bold">No se encontraron productos que coincidan con la búsqueda</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- POP-UP (MODAL) PARA EDITAR REPUESTO -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalEditarProducto" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-3 border-0">
+      
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold" id="modalEditarLabel"><i class="bi bi-pencil-square"></i> Editar Repuesto</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form action="{{ url_for('productos.actualizar_producto') }}" method="POST">
+        <div class="modal-body p-4">
+          
+          <input type="hidden" name="id_producto" id="edit_id_producto">
+
+          <div class="mb-3">
+            <label for="edit_descripcion" class="form-label fw-bold">Descripción del Repuesto</label>
+            <input type="text" class="form-control" id="edit_descripcion" name="descripcion" required>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="edit_modelo" class="form-label fw-bold">Modelo</label>
+              <input type="text" class="form-control" id="edit_modelo" name="modelo" required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="edit_marca" class="form-label fw-bold">Marca</label>
+              <input type="text" class="form-control" id="edit_marca" name="marca" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-12 mb-3">
+              <label for="edit_codigo_barras" class="form-label fw-bold">Código de Barras</label>
+              <input type="text" class="form-control" id="edit_codigo_barras" name="codigo_barras" placeholder="Sin código asignado" autocomplete="off">
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary fw-bold rounded-2" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning fw-bold text-dark rounded-2 shadow-sm">
+              <i class="bi bi-check-circle-fill"></i> Guardar Cambios
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+    const inputBuscador = document.getElementById('inputBuscador');
+    const panelEscaneo = document.getElementById('panelEscaneo');
+    const avisoNoEncontrado = document.getElementById('avisoEscaneoNoEncontrado');
+
+    // Quita el resaltado y oculta panel/aviso del escaneo anterior
+    function limpiarEscaneo() {
+        document.querySelectorAll('#tablaProductos .fila-producto.table-primary').forEach(f => f.classList.remove('table-primary'));
+        panelEscaneo.classList.add('d-none');
+        avisoNoEncontrado.classList.add('d-none');
+    }
+
+    // Buscador en vivo: filtra por descripción, modelo, marca y código de barras.
+    // El código se lee del atributo data-codigo (no de una celda visible).
+    inputBuscador.addEventListener('input', function() {
+        limpiarEscaneo();
+
+        const termino = this.value.toLowerCase().trim();
+        const filas = document.querySelectorAll('#tablaProductos .fila-producto');
+        let encontrados = 0;
+
+        filas.forEach(fila => {
+            const descripcion = fila.querySelector('.buscable-descripcion').textContent.toLowerCase();
+            const modelo = fila.querySelector('.buscable-modelo').textContent.toLowerCase();
+            const marca = fila.querySelector('.buscable-marca').textContent.toLowerCase();
+            const codigo = (fila.getAttribute('data-codigo') || '').toLowerCase();
+
+            if (descripcion.includes(termino) || modelo.includes(termino) || marca.includes(termino) || codigo.includes(termino)) {
+                fila.classList.remove('d-none');
+                encontrados++;
+            } else {
+                fila.classList.add('d-none');
+            }
+        });
+
+        const filaError = document.getElementById('filaNoResultados');
+        if (encontrados === 0 && filas.length > 0) {
+            filaError.classList.remove('d-none');
+        } else {
+            filaError.classList.add('d-none');
+        }
+    });
+
+    // ESCANEO: busca la fila con código exacto (atributo data-codigo),
+    // la resalta y muestra el panel con los datos del producto.
+    function mostrarProductoEscaneado(codigo) {
+        if (!codigo) return;
+        limpiarEscaneo();
+
+        const filas = document.querySelectorAll('#tablaProductos .fila-producto');
+        let filaEncontrada = null;
+        filas.forEach(fila => {
+            if (fila.getAttribute('data-codigo') === codigo) {
+                filaEncontrada = fila;
+            }
+        });
+
+        if (filaEncontrada) {
+            // Mostramos solo ese producto, resaltado
+            filas.forEach(f => f.classList.add('d-none'));
+            filaEncontrada.classList.remove('d-none');
+            filaEncontrada.classList.add('table-primary');
+            document.getElementById('filaNoResultados').classList.add('d-none');
+
+            // Llenamos el panel con los datos de la fila
+            // CAMBIO: se eliminó la línea que escribía el código en el panel
+            document.getElementById('escaneoDescripcion').textContent = filaEncontrada.querySelector('.celda-descripcion').textContent;
+            document.getElementById('escaneoMarca').textContent = filaEncontrada.querySelector('.celda-marca').textContent;
+            document.getElementById('escaneoModelo').textContent = filaEncontrada.querySelector('.celda-modelo').textContent;
+            document.getElementById('escaneoPrecio').textContent = filaEncontrada.querySelector('.celda-precio').textContent;
+            document.getElementById('escaneoStock').textContent = filaEncontrada.querySelector('.celda-stock').textContent;
+            panelEscaneo.classList.remove('d-none');
+        } else {
+            document.getElementById('codigoNoEncontrado').textContent = codigo;
+            avisoNoEncontrado.classList.remove('d-none');
+        }
+
+        // Dejamos el texto seleccionado: el próximo escaneo lo reemplaza solo
+        inputBuscador.select();
+    }
+
+    // Enter (lector físico o app que sí lo envía)
+    inputBuscador.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            mostrarProductoEscaneado(inputBuscador.value.trim());
+        }
+    });
+
+    // Detección automática SIN Enter: solo dígitos (6 o más) y 250 ms sin cambios
+    let temporizadorEscaneo = null;
+    inputBuscador.addEventListener('input', function() {
+        clearTimeout(temporizadorEscaneo);
+        const texto = inputBuscador.value.trim();
+        if (/^\d{6,}$/.test(texto)) {
+            temporizadorEscaneo = setTimeout(function() {
+                mostrarProductoEscaneado(texto);
+            }, 250);
+        }
+    });
+
+    // Carga de datos dinámica al abrir el Pop-Up (Modal)
+    document.addEventListener('DOMContentLoaded', function () {
+        inputBuscador.focus();
+
+        const modalEditar = document.getElementById('modalEditarProducto');
+        if (modalEditar) {
+            modalEditar.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                
+                document.getElementById('edit_id_producto').value = button.getAttribute('data-id');
+                document.getElementById('edit_descripcion').value = button.getAttribute('data-descripcion');
+                document.getElementById('edit_modelo').value = button.getAttribute('data-modelo');
+                document.getElementById('edit_marca').value = button.getAttribute('data-marca');
+                document.getElementById('edit_codigo_barras').value = button.getAttribute('data-codigo-barras');
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block content %}
+{% block body %}
+{% block contenido %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+<div class="container-fluid py-1 bg-light" style="min-height: 100vh; overflow-y: auto;">
+    <div class="row mb-4 px-3">
+        <div class="col">
+            <h3 class="text-dark fw-bold"> Módulo de reportes</h3>
+            <p class="text-muted mb-0">Monitoreo del movimiento de repuestos y control de reabastecimiento en tiempo real.</p>
+        </div>
+    </div>
+
+
+    <div class="row g-4 px-3 mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">Top 10 repuestos más vendidos</h5>
+                        <p class="text-muted small mb-0">Monitorea cuáles son las piezas con mayor rotación en el negocio.</p>
+                    </div>
+                    
+                    <ul class="nav nav-pills small" id="periodTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active py-2 px-4 fw-semibold" id="dia-tab" data-bs-toggle="tab" data-bs-target="#dia-pane" type="button" role="tab">Día</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-2 px-4 fw-semibold" id="semana-tab" data-bs-toggle="tab" data-bs-target="#semana-pane" type="button" role="tab">Semana</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-2 px-4 fw-semibold" id="mes-tab" data-bs-toggle="tab" data-bs-target="#mes-pane" type="button" role="tab">Mes</button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body pt-4" style="min-height: 350px; position: relative;">
+                    <div class="tab-content" id="periodTabsContent">
+                        <div class="tab-pane fade show active" id="dia-pane" role="tabpanel">
+                            {% if top_dia %}
+                                <canvas id="chartDia" style="max-height: 300px; width: 100%;"></canvas>
+                            {% else %}
+                                <div class="text-center py-5 text-muted">
+                                    
+                                    <p class="small mb-0">No se registran ventas el día de hoy todavía.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="semana-pane" role="tabpanel">
+                            {% if top_semana %}
+                                <canvas id="chartSemana" style="max-height: 300px; width: 100%;"></canvas>
+                            {% else %}
+                                <div class="text-center py-5 text-muted">
+                                    <p class="small mb-0">Sin datos de ventas en los últimos 7 días.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane fade" id="mes-pane" role="tabpanel">
+                            {% if top_mes %}
+                                <canvas id="chartMes" style="max-height: 300px; width: 100%;"></canvas>
+                            {% else %}
+                                <div class="text-center py-5 text-muted">
+                                    <p class="small mb-0">Sin registros de ventas en este mes.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="mx-3 my-4 border-2 opacity-10">
+
+    <div class="row g-4 px-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 bg-white">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="fw-bold text-dark mb-1"> Alerta de Stock Crítico y Reposición</h5>
+                    <p class="text-muted small mb-0">Muestra los repuestos que tienen pocas unidades físicas disponibles en el almacén. ¡Necesitan reponerse pronto!</p>
+                </div>
+                <div class="card-body pt-4" style="min-height: 350px; position: relative;">
+                    {% if stock_critico %}
+                        <canvas id="chartStock" style="max-height: 300px; width: 100%;"></canvas>
+                    {% else %}
+                        <div class="text-center py-5 text-success">
+                            <span class="fs-1 d-block mb-2">🛡️</span>
+                            <h6 class="fw-bold mb-0">¡Felicidades! Todo el inventario se encuentra en niveles óptimos y saludables.</h6>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuración general para los gráficos superiores (Ventas)
+    const ventasOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: '#64748b', font: { weight: 'bold', size: 13 } } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1, color: '#64748b' } }
+        }
+    };
+
+    
+// 4. GRÁFICO: Stock Crítico
+{% if stock_critico %}
+new Chart(document.getElementById('chartStock'), {
+    type: 'bar',
+    data: {
+        labels: [{% for prod in stock_critico %}"{{ prod.descripcion }} ({{ prod.Marca }})"{% if not loop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Unidades Disponibles',
+            data: [
+    {% for prod in stock_critico %}
+        {{ prod.stock_actual or 0 }}
+        {% if not loop.last %}, {% endif %}
+    {% endfor %}
+],  
+            backgroundColor: 'rgba(239, 68, 68, 0.85)',
+            borderColor: 'rgb(220, 38, 38)',
+            borderWidth: 1,
+            borderRadius: 6,
+            barThickness: 25
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { 
+                beginAtZero: true, 
+                grid: { color: '#f1f5f9' }, 
+                ticks: { 
+                    stepSize: 1, 
+                    color: '#64748b',
+                    font: { weight: 'bold' }
+                } 
+            },
+            y: { grid: { display: false }, ticks: { color: '#1e293b', font: { weight: '500', size: 13 } } }
+        }
+    }
+});
+
+{% endif %}
+
+// 1. Gráfico Diario (Azul) 
+    {% if top_dia %}
+    new Chart(document.getElementById('chartDia'), {
+        type: 'bar',
+        data: {
+            // Usamos |safe para evitar que caracteres especiales rompan el JS
+            labels: [{% for item in top_dia %}"{{ item.descripcion | safe }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                data: [{% for item in top_dia %}{{ item.total_vendido }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                borderRadius: 6,
+                barThickness: 45
+            }]
+        },
+        options: ventasOptions
+    });
+    {% endif %}
+
+
+// 2. Gráfico Semanal (Verde)
+    {% if top_semana %}
+    new Chart(document.getElementById('chartSemana'), {
+        type: 'bar',
+        data: {
+            labels: [{% for item in top_semana %}"{{ item.descripcion }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                data: [{% for item in top_semana %}{{ item.total_vendido }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                borderRadius: 6,
+                barThickness: 45
+            }]
+        },
+        options: ventasOptions
+    });
+    {% endif %}
+
+// 3. Gráfico Mensual (Morado)
+    {% if top_mes %}
+    new Chart(document.getElementById('chartMes'), {
+        type: 'bar',
+        data: {
+            labels: [{% for item in top_mes %}"{{ item.descripcion }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+            datasets: [{
+                data: [{% for item in top_mes %}{{ item.total_vendido }}{% if not loop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: 'rgba(139, 92, 246, 0.85)',
+                borderRadius: 6,
+                barThickness: 45
+            }]
+        },
+        options: ventasOptions
+    });
+    {% endif %}
+
+</script>
+
+{% endblock %}
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moto Repuestos San Hillarion</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+ 
+    <style>
+        /* HOLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA */
+        :root {
+            /* Variables de Bootstrap redefinidas a la paleta Premium */
+            --bs-primary: #1e40af;         /* Azul Corporativo Intenso */
+            --bs-primary-rgb: 30, 64, 175;
+            
+            --bs-success: #10b981;         /* Verde Esmeralda para Éxitos y altas */
+            --bs-success-rgb: 16, 185, 129;
+            
+            --bs-dark: #0f172a;            /* Azul Pizarra Obscuro para Headers y Modales */
+            --bs-dark-rgb: 15, 23, 42;
+            
+            --bs-body-bg: #fcf9f8;         /* Fondo gris tenue super limpio para el almacén */
+            
+            /* Fuente global */
+            --bs-body-font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Estructura general de pantalla completa */
+        body { 
+            font-family: var(--bs-body-font-family);
+            background-color: var(--bs-body-bg);
+            height: 100vh; 
+            margin: 0;
+            overflow: hidden; 
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .wrapper { 
+            display: flex; 
+            width: 100%; 
+            height: 100vh; 
+            align-items: stretch; 
+        }
+        
+        /* BARRA LATERAL (Estilo Dashboard Moderno) */
+        .sidebar { 
+            min-width: 240px; 
+            max-width: 240px; 
+            background-color: #1e293b !important; /* Gris azulado obscuro elegante */
+            height: 100vh; 
+            position: sticky;
+            top: 0;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Estilos de los links de navegación lateral */
+        .sidebar .nav-link { 
+            color: #94a3b8; 
+            padding: 12px 18px; 
+            font-weight: 500;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar .nav-link:hover { 
+            color: #f8fafc; 
+            background-color: #334155; 
+        }
+        
+        .sidebar .nav-link.active { 
+            color: white; 
+            background-color: var(--bs-primary); 
+        }
+        
+        /* ZONA DE TRABAJO (Scroll independiente para listados largos) */
+        .main-content { 
+            flex: 1; 
+            padding: 35px; 
+            background-color: var(--bs-body-bg); 
+            height: 100vh; 
+            overflow-y: auto; 
+        }
+
+        /* Refinamientos en tarjetas y botones de todo el sistema */
+        .card {
+            border-radius: 12px !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+        }
+        .btn {
+            border-radius: 8px !important;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <nav class="sidebar d-flex flex-column p-3">
+            <a href="{{ url_for('productos.inicio') }}" class="d-flex align-items-center mb-3 mt-2 me-md-auto text-white text-decoration-none">
+                <i class="bi bi-motorcycle fs-3 me-2 text-info"></i>
+                <span class="fs-5 fw-bold tracking-tight">MotoRepuestos San Hillarion</span>
+            </a>
+            <hr class="text-secondary">
+            
+            <ul class="nav nav-pills flex-column mb-auto">
+                
+                </li>
+                <li>
+                    <a href="{{ url_for('productos.inicio') }}" class="nav-link">
+                        <i class="bi bi-box-seam me-2"></i> Inventario
+                    </a>
+                </li>
+                <li>
+                    <!-- TODO: cambiar a url_for('ventas.pantalla_vender') cuando migremos Ventas (Paso 3) -->
+                    <a href="{{ url_for('ventas.pantalla_vender') }}" class="nav-link">
+                        <i class="bi bi-cart3 me-2"></i> Caja / Vender
+                    </a>
+                </li>
+                <li>
+                    <!-- TODO: cambiar a url_for('ventas.historial_ventas') cuando migremos Ventas (Paso 3) -->
+                   <a href="{{ url_for('ventas.historial_ventas') }}" class="nav-link">
+                        <i class="bi bi-receipt me-2"></i> Historial de Ventas
+                    </a>
+                </li>
+                <li>
+                    <!-- TODO: cambiar a url_for('compras.pantalla_comprar') cuando migremos Compras (Paso 4) -->
+                    <a href="{{ url_for('compras.pantalla_comprar') }}" class="nav-link">
+                        <i class="bi bi-truck me-2"></i> Comprar
+                    </a>
+                </li>
+                <li class="nav-item">
+                 <!-- TODO: cambiar a url_for('compras.historial_compras') cuando migremos Compras (Paso 4) -->
+                 <a class="nav-link {% if request.path == '/historial_compras' %}active{% endif %}" href="/historial_compras">
+                     <i class="bi bi-receipt me-2"></i>Historial Compras
+                </a>
+                </li>
+                <li>
+                    <!-- TODO: cambiar a url_for('usuarios.pantalla_usuarios') cuando migremos Usuarios (Paso 5) -->
+                    <a href="{{ url_for('usuarios.pantalla_usuarios') }}" class="nav-link">
+                        <i class="bi bi-people me-2"></i>Usuarios
+                    </a>
+                </li>
+            <!-- TODO: cambiar a url_for('reportes.graficas') cuando migremos Reportes (Paso 6) -->
+            <a class="nav-link" href="{{ url_for('reportes.graficas') }}">
+                <i class="bi bi-box-seam me-2"></i>Reportes
+            </a>
+            <hr class="text-secondary opacity-25 my-3"> <a class="nav-link text-danger fw-semibold d-flex align-items-center gap-2" 
+   href="#" 
+   id="btn-logout" 
+   style="cursor: pointer;">
+    <i class="fa-solid fa-right-from-bracket"></i> 
+    <span>Cerrar Sesión</span>
+</a>
+<hr class="text-secondary opacity-25 my-3">
+            </ul>
+            <hr class="text-secondary">
+            <div class="text-muted px-2" style="font-size: 0.75rem;">v1.0 - Panel de Administración</div>
+            
+        </nav>
+<!--d-flex flex-column es para permitir que la vista hija ocupe todo el espacio vertical -->
+<main class="main-content d-flex flex-column">
+    {% block contenido %}
+    {% endblock %}
+</main>
+    </div>
+
+
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+   <script>
+document.getElementById('btn-logout').addEventListener('click', function(e) {
+    e.preventDefault(); // Detiene el comportamiento por defecto del enlace
+
+    Swal.fire({
+        title: '¿Cerrar sesión?',
+        text: "¿Estás seguro de que deseas salir del sistema de ventas?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444', // Rojo Coral administrativo
+        cancelButtonColor: '#64748b',  // Gris pizarra neutro
+        confirmButtonText: 'Sí, salir',
+        cancelButtonText: 'Cancelar',
+        background: '#ffffff',
+        customClass: {
+            popup: 'rounded-4 shadow',
+            title: 'fw-bold text-dark fs-4'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Redirige a la ruta de Flask que destruye la sesión
+            window.location.href = "{{ url_for('auth.logout') }}";
+        }
+    });
+});
+</script>
+</body>
+</html>

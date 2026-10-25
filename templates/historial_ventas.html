@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block content %}
+{% block body %}
+{% block contenido %}
+
+<!-- ============================================================ -->
+<!-- CABECERA DEL MÓDULO -->
+<!-- Aquí es donde agregamos los 2 botones nuevos, a la derecha 
+     del título. Antes estaban dentro de cada fila de la tabla 
+     (columna "Acciones"), ahora viven acá arriba y se activan 
+     según qué fila se seleccione abajo. -->
+<!-- ============================================================ -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom gap-2">
+    <div> 
+        <h1 class="h2 fw-bold text-dark mb-1">Módulo de historial de ventas</h1> 
+    </div>
+
+    <!-- Contenedor de los 2 botones de acción -->
+    <div class="d-flex gap-2">
+        <!-- 
+            Botón "Ver más detalles de factura":
+            - Empieza DESHABILITADO (atributo disabled) porque al cargar 
+              la página todavía no hay ninguna fila seleccionada.
+            - id="btnVerDetalleFactura" lo usamos desde JavaScript para 
+              habilitarlo/deshabilitarlo y para saber a qué URL navegar 
+              cuando se le da clic.
+            - data-url empieza vacío ("") porque aún no sabemos el id_venta;
+              el JavaScript lo va a llenar dinámicamente cuando el usuario 
+              seleccione una fila.
+        -->
+        <button type="button" 
+                id="btnVerDetalleFactura" 
+                class="btn btn-sm btn-outline-success shadow-sm px-3" 
+                data-url=""
+                disabled>
+            <i class="bi bi-receipt"></i> Ver detalles de factura
+        </button>
+
+        <!-- 
+            Botón "Ver detalles de reembolso":
+            - Igual que el anterior, empieza deshabilitado.
+            - IMPORTANTE: por ahora este botón NO tiene ninguna función 
+              real conectada (no navega a ningún lado todavía). Solo se 
+              habilita/deshabilita visualmente según la fila seleccionada, 
+              tal como pediste. La lógica de qué hacer al hacer clic la 
+              agregamos en un paso futuro.
+        -->
+        <button type="button" 
+                id="btnVerDetalleReembolso" 
+                class="btn btn-sm btn-outline-danger shadow-sm px-3" 
+                disabled>
+            <i class="bi bi-arrow-counterclockwise"></i> Ver detalles de reembolso
+        </button>
+    </div>
+</div>
+
+<div class="row g-4 px-3">
+    <!-- Tabla Principal de Historial de Ventas -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="background-color: white;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="ps-3">#Venta</th>
+                                <th>Fecha y Hora</th>
+                                <!--<th>Vendedor</th>-->
+                                <th>Total venta</th>
+                                <!-- 
+                                    La columna "Acciones" ya NO existe, tal como pediste.
+                                    El botón que vivía aquí se movió arriba a la cabecera.
+                                -->
+                            </tr>
+                        </thead>
+                        <tbody id="tablaHistorialVentas">
+
+   {% for venta in ventas %}
+   <!--
+        Cada <tr> ahora es CLICKEABLE completo (no solo un botón dentro).
+        Le agregamos varios atributos "data-*" para que el JavaScript 
+        pueda leer esta información sin tener que volver a pedirle nada 
+        al servidor:
+
+        - data-id-venta: el id de esta venta, lo necesitamos para armar 
+          la URL de "Ver detalles de factura" (?id_venta=X).
+        - data-tiene-reembolso: "true" o "false", el JS lo usa para saber 
+          si debe habilitar el botón de "Ver detalles de reembolso" o no.
+        - data-url-detalle: la URL exacta a la que debe navegar el botón 
+          "Ver detalles de factura" cuando esta fila esté seleccionada. 
+          La generamos aquí con Jinja (url_for) para no tener que 
+          reconstruirla a mano en JavaScript.
+        - style="cursor: pointer;": cambia el cursor del mouse a "manita" 
+          al pasar sobre la fila, para darle la pista visual de que es 
+          clickeable (buena práctica de UX).
+
+        Sobre las clases de color (table-warning / border-success):
+        Mantenemos exactamente la misma lógica de colores que ya tenías:
+        - Si la venta tiene reembolso -> fondo amarillo (table-warning).
+        - Si la venta es la que está actualmente mostrada en el detalle 
+          de la derecha (venta_seleccionada, viene del backend porque la 
+          página se recargó con ?id_venta=X) -> se resalta con borde verde.
+        Esto se preserva IGUAL en el "class=" de abajo; lo único nuevo es 
+        que además, en JavaScript, vamos a agregar una clase extra 
+        "fila-click-seleccionada" para marcar visualmente cuál fila 
+        seleccionó el usuario con el clic (independiente de si el backend 
+        ya la tenía marcada como venta_seleccionada). Ver <style> más abajo.
+   -->
+<tr class="fila-venta {% if venta.tiene_reembolso %}table-warning{% elif venta_seleccionada and venta_seleccionada.id_venta == venta.id_venta %}table-light border-start border-3 border-success{% endif %}"
+    data-id-venta="{{ venta.id_venta }}"
+    data-tiene-reembolso="{{ 'true' if venta.tiene_reembolso else 'false' }}"
+    data-url-detalle="{{ url_for('ventas.historial_ventas', id_venta=venta.id_venta) }}"
+    data-url-reembolso="{{ url_for('ventas.historial_ventas', id_venta=venta.id_venta, modo='reembolso') }}"
+    style="cursor: pointer;">
+
+    <td class="ps-3 fw-bold">#{{ venta.id_venta }}</td>
+    <td>
+        {{ venta.fecha_hora.strftime('%d/%m/%Y %H:%M') if venta.fecha_hora else '' }}
+        {% if venta.tiene_reembolso %}
+            <br>
+            <span class="badge bg-danger-subtle text-danger fw-semibold mt-1" style="white-space: normal;">
+                <i class="bi bi-arrow-counterclockwise"></i> 
+                Reembolsada — {{ venta.fecha_reembolso.strftime('%d/%m/%Y %H:%M') }}
+            </span>
+        {% endif %}
+    </td>
+    <!--<td><span class="badge bg-secondary">{{ venta.vendedor }}</span></td>-->
+    <td class="text-success fw-bold">${{ "{:,.2f}".format(venta.total_venta) }}</td>
+    <!-- Ya no hay <td> de Acciones aquí, la columna se eliminó -->
+</tr>
+{% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">
+                                    No se han realizado ventas en el sistema todavía.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de Detalle de Venta Seleccionada -->
+       <!-- Card de Detalle de Venta Seleccionada -->
+    <div class="col-lg-5">
+        {% if modo == 'reembolso' and detalle_reembolsos %}
+        <!-- ============================================================ -->
+        <!-- MODO REEMBOLSO: se muestra el historial de devoluciones 
+             de esta venta en vez del detalle normal de productos vendidos.
+             Puede haber varias devoluciones si se hicieron en momentos 
+             distintos, por eso iteramos con un y las mostramos 
+             todas, ordenadas de la más reciente a la más antigua (ya vienen 
+             ordenadas así desde el model). -->
+        <!-- ============================================================ -->
+        <div class="card shadow-sm border-0 position-sticky" style="top: 20px; background-color: white; overflow-y: auto; max-height: 80vh;">
+            <div class="card-header bg-danger py-1 border-0">
+                <h5 class="card-title mb-0 fw-bold">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>
+                    Reembolsos — Venta #{{ venta_seleccionada.id_venta }}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for devolucion in detalle_reembolsos %}
+                <!-- 
+                    Cada devolución se muestra como una tarjeta pequeña 
+                    dentro de la lista. Si hay varias, quedan apiladas 
+                    verticalmente con separación (mb-3).
+                -->
+                <div class="border rounded-3 p-3 mb-3 bg-light">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="d-block fw-bold text-dark">{{ devolucion.descripcion_producto }}</span>
+                            <small class="text-muted">{{ devolucion.marca_producto if devolucion.marca_producto else '' }}</small>
+                        </div>
+                        <span class="badge bg-danger-subtle text-danger fw-bold">
+                            {{ devolucion.cantidad }} u.
+                        </span>
+                    </div>
+
+                    <div class="row small text-secondary mb-2">
+                        <div class="col-6">
+                            <strong>Motivo:</strong><br>
+                            <span class="text-dark">{{ devolucion.motivo }}</span>
+                        </div>
+                        <div class="col-6">
+                            <strong>Monto reembolsado:</strong><br>
+                            <span class="text-dark fw-semibold">${{ "{:,.2f}".format(devolucion.monto_reembolsado) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="row small text-secondary">
+                        <div class="col-6">
+                            <strong>Fecha y hora:</strong><br>
+                            <!-- 
+                                Usamos strftime para formatear la fecha, igual 
+                                que en el resto del sistema. fecha_devolucion 
+                                siempre existe porque la columna la genera 
+                                MySQL automáticamente (DEFAULT CURRENT_TIMESTAMP).
+                            -->
+                            <span class="text-dark">{{ devolucion.fecha_devolucion.strftime('%d/%m/%Y %H:%M') }}</span>
+                        </div>
+                        <div class="col-6">
+                            <strong>Realizado por:</strong><br>
+                            <!-- 
+                                Si nombre_usuario_devolucion es None (reembolsos 
+                                antiguos, hechos antes de agregar la columna 
+                                id_usuario), mostramos "No registrado" en vez 
+                                de dejar el campo vacío o mostrar "None".
+                            -->
+                            <span class="text-dark">
+                                {{ devolucion.nombre_usuario_devolucion if devolucion.nombre_usuario_devolucion else 'No registrado' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <a href="{{ url_for('ventas.historial_ventas') }}" class="btn btn-secondary w-100 mt-2 btn-sm shadow-sm">
+                    Cerrar vista de detalle
+                </a>
+            </div>
+        </div>
+
+        {% elif detalle %}
+        <!-- ============================================================ -->
+        <!-- MODO FACTURA (comportamiento original, sin cambios): se 
+             muestra el detalle normal de productos vendidos en la venta. -->
+        <!-- ============================================================ -->
+        <div class="card shadow-sm border-0 position-sticky" style="top: 20px; background-color: white;">
+            <div class="card-header bg-success text-white py-1 border-0">
+                <h5 class="card-title mb-0 fw-bold">Detalle de Venta #{{ venta_seleccionada.id_venta }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3 bg-light p-0 rounded">
+                    <div class="row text-muted small">
+                        <div class="col-6 mb-2">
+                            <strong>Fecha de Emisión:</strong><br>
+                            <span class="text-dark fw-semibold">{{ venta_seleccionada.fecha_hora.strftime('%d/%m/%Y %H:%M') }}</span>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <strong>Vendedor:</strong><br>
+                            <span class="text-dark fw-semibold">{{ venta_seleccionada.vendedor }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-striped align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Repuesto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Precio U.</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in detalle %}
+                            <tr>
+                                <td>
+                                    <span class="d-block text-dark fw-semibold">{{ item.descripcion }}</span>
+                                    <small class="text-muted">{{ item.Marca if item.Marca else '' }}</small>
+                                </td>
+                                <td class="text-center fw-bold">{{ item.cantidad }}</td>
+                                <td class="text-end text-secondary">
+                                    ${{ "{:,.2f}".format(item.precio_unitario | default(0) | float) }}
+                                </td>
+                                <td class="text-end fw-semibold text-dark">
+                                    ${{ "{:,.2f}".format(item.subtotal | default(0) | float) }}
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger shadow-sm px-2 py-0" 
+                                            title="Devolver / Reembolsar este producto"
+                                            onclick="abrirModalReembolso('{{ venta_seleccionada.id_venta }}', '{{ item.id_producto }}', '{{ item.descripcion }}', '{{ item.cantidad }}')">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-0 border-top">
+                    <span class="fs-5 fw-bold text-secondary">Total Cobrado:</span>
+                    <span class="fs-4 fw-bold text-success">${{ "{:,.2f}".format(venta_seleccionada.total_venta) }}</span>
+                </div>
+                
+                <a href="{{ url_for('ventas.historial_ventas') }}" class="btn btn-secondary w-100 mt-3 btn-sm shadow-sm">
+                    Cerrar vista de detalle
+                </a>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Estado inicial: nada seleccionado todavía -->
+        <div class="card shadow-sm border-0 bg-white text-center py-5 px-4">
+            <div class="my-3 text-muted">
+                <span class="fs-1 d-block mb-2"><i class="bi bi-journal-text text-secondary"></i></span>
+                <h5 class="fw-bold text-secondary">Auditoría de Salidas</h5>
+                <p class="small text-muted px-3">Selecciona una factura en la tabla y usa los botones de arriba para ver sus detalles.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+<!-- MODAL PARA PROCESAR EL REEMBOLSO DE UN REPUESTO -->
+<div class="modal fade" id="modalReembolso" tabindex="-1" aria-labelledby="modalReembolsoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow border-0">
+            <div class="modal-header bg-danger text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="modalReembolsoLabel">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Procesar Reembolso
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('ventas.procesar_reembolso') }}" method="POST">
+                <div class="modal-body p-0">
+                    <!-- Inputs Ocultos -->
+                    <input type="hidden" name="id_venta" id="reembolso_id_venta">
+                    <input type="hidden" name="id_producto" id="reembolso_id_producto">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Repuesto Seleccionado</label>
+                        <input type="text" class="form-control bg-light text-dark fw-bold" id="reembolso_nombre_producto" readonly disabled>
+                    </div>
+
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary">Cantidad a Devolver</label>
+                            <input type="number" name="cantidad" id="reembolso_cantidad" class="form-control" min="1" value="1" required>
+                            <div class="form-text small">Máximo permitido: <span id="reembolso_max_txt" class="fw-bold">1</span></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-secondary">Motivo</label>
+                            <select name="motivo" class="form-select" required>
+                                <option value="Defectuoso / Dañado">Defectuoso / Dañado</option>
+                                <option value="Producto equivocado">Producto equivocado</option>
+                                <option value="Cambio por otro repuesto">Cambio por otro repuesto</option>
+                                <option value="Cancelación de cliente">Cancelación de cliente</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary rounded-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger rounded-3 fw-bold">Confirmar Reembolso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ESTILO NUEVO: resaltado visual de la fila que el usuario 
+     seleccionó haciendo clic (independiente del color amarillo de 
+     "reembolsada"). Usamos un borde azul grueso a la izquierda, 
+     que es visualmente distinto del borde verde que ya usa el 
+     backend para marcar "esta es la venta que se está mostrando 
+     en el detalle de la derecha". Así evitamos que se confundan 
+     ambos estados, tal como pediste en la pregunta 2. -->
+<!-- ============================================================ -->
+<style>
+    tr.fila-click-seleccionada {
+        outline: 3px solid #0d6efd; /* azul Bootstrap primary */
+        outline-offset: -3px;
+    }
+</style>
+
+<!-- JAVASCRIPT DEL MÓDULO -->
+<script>
+    function abrirModalReembolso(idVenta, idProducto, descripcionProducto, cantidadMax) {
+        document.getElementById('reembolso_id_venta').value = idVenta;
+        document.getElementById('reembolso_id_producto').value = idProducto;
+        document.getElementById('reembolso_nombre_producto').value = descripcionProducto;
+        
+        const inputCantidad = document.getElementById('reembolso_cantidad');
+        inputCantidad.value = 1;
+        inputCantidad.max = cantidadMax;
+        
+        document.getElementById('reembolso_max_txt').textContent = cantidadMax;
+
+        const modalElement = document.getElementById('modalReembolso');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+
+    // ============================================================
+    // LÓGICA NUEVA: selección de fila + habilitar/deshabilitar botones
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Referencias a los elementos que vamos a manipular:
+        // - todasLasFilas: la lista de TODOS los <tr> de ventas en la tabla.
+        // - btnFactura / btnReembolso: los 2 botones nuevos de la cabecera.
+        const todasLasFilas = document.querySelectorAll('#tablaHistorialVentas .fila-venta');
+        const btnFactura = document.getElementById('btnVerDetalleFactura');
+        const btnReembolso = document.getElementById('btnVerDetalleReembolso');
+
+        // ------------------------------------------------------------
+        // Función que "activa" una fila: la marca visualmente como 
+        // seleccionada y habilita/deshabilita los botones según 
+        // corresponda. La reutilizamos tanto para el clic del usuario 
+        // como para la carga inicial de la página (ver más abajo).
+        // ------------------------------------------------------------
+        function seleccionarFila(fila) {
+            // 1. Quitamos la marca visual de selección de TODAS las filas
+            //    (para que solo una esté marcada a la vez).
+            todasLasFilas.forEach(function (f) {
+                f.classList.remove('fila-click-seleccionada');
+            });
+
+            // 2. Marcamos visualmente la fila que se acaba de seleccionar.
+            fila.classList.add('fila-click-seleccionada');
+
+            // 3. Leemos los datos que guardamos en los atributos "data-*" 
+            //   de esa fila (ver el HTML de arriba, dentro del bucle for de Jinja).
+            const idVenta = fila.getAttribute('data-id-venta');
+            const tieneReembolso = fila.getAttribute('data-tiene-reembolso') === 'true';
+            const urlDetalle = fila.getAttribute('data-url-detalle');
+            //Esta es la nueva que he añadido luego de editar el Java script para el reembolso
+            const urlReembolso = fila.getAttribute('data-url-reembolso');
+
+            // 4. Habilitamos SIEMPRE el botón de "Ver detalles de factura" 
+            //    (aplica tanto para ventas normales como con reembolso, 
+            //    según nos confirmaste en la pregunta 3), y le guardamos 
+            //    la URL exacta a la que debe navegar en su atributo data-url.
+           btnFactura.disabled = false;
+btnFactura.setAttribute('data-url', urlDetalle);
+
+btnReembolso.disabled = !tieneReembolso;
+btnReembolso.setAttribute('data-url', urlReembolso);
+        }
+
+        // ------------------------------------------------------------
+        // Le agregamos el evento de clic a CADA fila de la tabla.
+        // Al hacer clic en cualquier parte de la fila (no en un botón 
+        // específico, porque ya no hay botones dentro de las filas), 
+        // se llama a seleccionarFila() con esa fila.
+        // ------------------------------------------------------------
+        todasLasFilas.forEach(function (fila) {
+            fila.addEventListener('click', function () {
+                seleccionarFila(fila);
+            });
+        });
+
+        // ------------------------------------------------------------
+        // Clic en el botón "Ver detalles de factura": simplemente 
+        // navega a la URL que guardamos en su atributo data-url 
+        // (la misma URL que antes usaba el link "Ver más detalles" 
+        // de cada fila: ?id_venta=X).
+        // ------------------------------------------------------------
+        btnFactura.addEventListener('click', function () {
+            const url = btnFactura.getAttribute('data-url');
+            if (url) {
+                window.location.href = url;
+            }
+        });
+
+        // ------------------------------------------------------------
+        // Clic en el botón "Ver detalles de reembolso":
+        // Por ahora NO hace nada, tal como nos pediste. Este botón 
+        // ya queda habilitado/deshabilitado correctamente según la 
+        // fila seleccionada, pero su funcionalidad real se conecta 
+        // en un paso futuro.
+        // ------------------------------------------------------------
+
+        // btnReembolso.addEventListener('click', function () {
+        //     // TODO: implementar navegación/detalle de reembolso
+        // });
+    btnReembolso.addEventListener('click', function () {
+        const url = btnReembolso.getAttribute('data-url');
+        if (url) {
+        window.location.href = url;
+    }
+});
+        
+
+
+        // ------------------------------------------------------------
+        // CASO ESPECIAL: si la página se cargó porque el usuario ya 
+        // había seleccionado una factura antes (es decir, la URL trae 
+        // ?id_venta=X y por eso el backend nos mandó "detalle" con 
+        // datos), queremos que esa fila aparezca ya seleccionada 
+        // visualmente y con sus botones habilitados desde el primer 
+        // momento, sin que el usuario tenga que volver a hacer clic.
+        // 
+        // Para lograrlo, Jinja nos dice aquí abajo (en la variable 
+        // idVentaSeleccionadaInicial) cuál es el id_venta actual, y 
+        // buscamos esa fila específica entre todasLasFilas para 
+        // activarla automáticamente.
+        // ------------------------------------------------------------
+        const idVentaSeleccionadaInicial = "{{ venta_seleccionada.id_venta if venta_seleccionada else '' }}";
+
+        if (idVentaSeleccionadaInicial) {
+            todasLasFilas.forEach(function (fila) {
+                if (fila.getAttribute('data-id-venta') === idVentaSeleccionadaInicial) {
+                    seleccionarFila(fila);
+                }
+            });
+        }
+    });
+</script>
+
+{% endblock %}
+{% endblock %}
+{% endblock %}
