@@ -69,8 +69,8 @@ def agregar_producto_al_carrito(carrito, id_prod, cantidad):
         carrito[id_str] = {
             'id_producto': producto['id_producto'],
             'descripcion': producto['descripcion'],
-            'marca': producto['Marca'],
-            'modelo': producto['Modelo'],
+            'marca': producto['marca'],
+            'modelo': producto['modelo'],
             'precio': float(producto['precio_venta']),
             'cantidad': nueva_cantidad
         }

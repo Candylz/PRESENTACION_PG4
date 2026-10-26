@@ -11,7 +11,7 @@ def obtener_top_productos_dia():
         FROM detalle_venta dv
         INNER JOIN Ventas v ON dv.id_venta = v.id_venta
         INNER JOIN Productos p ON dv.id_producto = p.id_producto
-        WHERE v.fecha_hora >= DATE_FORMAT(NOW(), '%Y-%m-%d 00:00:00')
+        WHERE v.fecha_hora >= CURRENT_DATE
         GROUP BY p.id_producto, p.descripcion
         ORDER BY total_vendido DESC LIMIT 10
     """
@@ -33,7 +33,7 @@ def obtener_top_productos_semana():
         FROM detalle_venta dv
         INNER JOIN Ventas v ON dv.id_venta = v.id_venta
         INNER JOIN Productos p ON dv.id_producto = p.id_producto
-        WHERE v.fecha_hora >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        WHERE v.fecha_hora >= CURRENT_DATE - INTERVAL '7 days'
         GROUP BY p.id_producto, p.descripcion
         ORDER BY total_vendido DESC LIMIT 10
     """
@@ -55,7 +55,7 @@ def obtener_top_productos_mes():
         FROM detalle_venta dv
         INNER JOIN Ventas v ON dv.id_venta = v.id_venta
         INNER JOIN Productos p ON dv.id_producto = p.id_producto
-        WHERE MONTH(v.fecha_hora) = MONTH(CURDATE()) AND YEAR(v.fecha_hora) = YEAR(CURDATE())
+        WHERE EXTRACT(MONTH FROM v.fecha_hora) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM v.fecha_hora) = EXTRACT(YEAR FROM CURRENT_DATE)
         GROUP BY p.id_producto, p.descripcion
         ORDER BY total_vendido DESC LIMIT 10
     """

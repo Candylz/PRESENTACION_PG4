@@ -8,17 +8,17 @@ def obtener_productos_para_venta(termino_busqueda=None):
 
     if termino_busqueda:
         query = """
-           "SELECT id_producto, descripcion, Modelo, Marca, stock_actual, precio_venta, codigo_barras "
-            FROM Productos 
+           "SELECT id_producto, descripcion, modelo, marca, stock_actual, precio_venta, codigo_barras "
+            FROM productos 
             WHERE stock_actual > 0 
-              AND (descripcion LIKE %s OR Modelo LIKE %s OR Marca LIKE %s)
+              AND (descripcion LIKE %s OR modelo LIKE %s OR marca LIKE %s)
             ORDER BY descripcion ASC
         """
         like = f"%{termino_busqueda}%"
         cursor.execute(query, (like, like, like))
     else:
         cursor.execute(
-            "SELECT id_producto, descripcion, Modelo, Marca, stock_actual, precio_venta, codigo_barras "
+            "SELECT id_producto, descripcion, modelo, marca, stock_actual, precio_venta, codigo_barras "
             "FROM Productos WHERE stock_actual > 0 ORDER BY descripcion ASC"
         )
 
@@ -55,9 +55,9 @@ def registrar_venta_completa(id_usuario, carrito, total_factura):
     try:
         cursor = conexion.cursor()
 
-        query_venta = "INSERT INTO Ventas (id_usuario, total_venta) VALUES (%s, %s)"
+        query_venta = "INSERT INTO Ventas (id_usuario, total_venta) VALUES (%s, %s) RETURNING id_venta"
         cursor.execute(query_venta, (id_usuario, total_factura))
-        id_nueva_venta = cursor.lastrowid
+        id_nueva_venta = cursor.fetchone()[0]
 
         for item in carrito.values():
             query_detalle = """

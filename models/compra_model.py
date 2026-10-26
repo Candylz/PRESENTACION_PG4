@@ -94,22 +94,23 @@ def registrar_compra_completa(id_proveedor, id_usuario, total_compra, items_comp
         cursor = conexion.cursor()
 
         sql_compra = """
-            INSERT INTO Compras (id_proveedor, fecha_compra, total_compra, id_usuario)
+            INSERT INTO compras (id_proveedor, fecha_compra, total_compra, id_usuario)
             VALUES (%s, NOW(), %s, %s)
+            RETURNING id_compra
         """
         cursor.execute(sql_compra, (id_proveedor, total_compra, id_usuario))
-        id_compra_generada = cursor.lastrowid
+        id_compra_generada = cursor.fetchone()[0]
 
         for item in items_compra:
             sql_detalle = """
-                INSERT INTO Detalle_compra (id_compra, id_producto, cantidad, precio_costo)
+                INSERT INTO detalle_compra (id_compra, id_producto, cantidad, precio_costo)
                 VALUES (%s, %s, %s, %s)
             """
             cursor.execute(sql_detalle, (id_compra_generada, item['id_producto'], item['cantidad'], item['precio_compra']))
 
             sql_producto = """
-                UPDATE Productos 
-                SET Stock_actual = Stock_actual + %s,
+                UPDATE productos 
+                SET stock_actual = stock_actual + %s,
                     precio_compra = %s,
                     precio_venta = %s
                 WHERE id_producto = %s

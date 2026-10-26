@@ -16,10 +16,10 @@ def login():
         if cuenta:
             session['logeado'] = True
             session['id_usuario'] = cuenta['id_usuario']
-            session['usuario'] = cuenta['Usuario']
+            session['usuario'] = cuenta['usuario']
             session['nombre'] = cuenta['nombre_usuario']
             session['rol'] = cuenta['rol']
-            print(f"🔑 Sesión iniciada por: {cuenta['Usuario']}")
+            print(f" Sesión iniciada por: {cuenta['usuario']}")
             return redirect(url_for('productos.inicio'))
         else:
             return render_template('login.html', error="Usuario o contraseña incorrectos")
